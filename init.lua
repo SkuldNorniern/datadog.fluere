@@ -7,34 +7,14 @@ local hostname = "YOUR_HOSTNAME"
 
 -- Initialization function
 function plugin.init(config)
-  -- Initialize the plugin with the provided configuration
-  if config.api_key then
-    API_KEY = config.api_key
-  else
-    error("No api key provided")
-  end
-  if config.app_key then
-    APP_KEY = config.app_key
-  else 
-    error("No app key provided")
-  end
-  if config.hostname then
-    hostname = config.hostname
-  else
-    hostname = "fluerehost"
-  end
+  API_KEY = config.api_key or error("No API key provided")
+  APP_KEY = config.app_key or error("No app key provided")
+  hostname = config.hostname or "fluerehost"
 end
 
 -- Create tag function
 function plugin.create_tag(metric_name, tags)
-  local tags_str = ""
-  for i, tag in ipairs(tags) do
-    tags_str = tags_str .. tag
-    if i < #tags then
-      tags_str = tags_str .. ", "
-    end
-  end
-
+  local tags_str = table.concat(tags, ", ")
   print("Creating tags: " .. tags_str .. " for metric: " .. metric_name)
 
   local tags_endpoint = string.format("https://api.us5.datadoghq.com/api/v2/metrics/%s/tags", metric_name)
@@ -49,141 +29,58 @@ function plugin.create_tag(metric_name, tags)
     }
   }
 
-  os.execute(string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\'', tags_endpoint, API_KEY, APP_KEY, dkjson.encode(create_tag_payload)))
+  local curl_command = string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\'', tags_endpoint, API_KEY, APP_KEY, dkjson.encode(create_tag_payload))
+  os.execute(curl_command)
+end
+
+local function execute_curl_command(endpoint, payload)
+  local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, APP_KEY, dkjson.encode(payload))
+  os.execute(curl_command)
 end
 
 
+-- Helper function to create payload
+local function create_payload(data, metric_name, data_field)
+  return {
+    series = {
+      {
+        metric = metric_name,
+        type = 0,
+        points = {
+          {
+            timestamp = data.first // 1000000,
+            value = data[data_field] + 0.0
+          }
+        },
+        resources = {
+          {
+            name = hostname,
+            type = "host"
+          }
+        },
+        tags = {
+          "source_ip:" .. data.source,
+          "dest_ip:" .. data.destination,
+          "protocol:" .. data.prot,
+          "src_port:" .. data.src_port,
+          "dst_port:" .. data.dst_port
+        },
+        unit = ""
+      }
+    }
+  }
+end
 
 -- Process data function
 function plugin.process_data(data)
-  -- print("Using API key: " .. API_KEY)
-
-  -- Create a tag (you can remove this line if you don't want to create a tag every time data is processed)
-  --plugin.create_tag("fluere.net.flow", {"source_ip", "dest_ip", "protocol", "src_port", "dst_port","first","last"})
-
-  -- Submit the metrics using v2 API
   local metrics_endpoint = "https://api.us5.datadoghq.com/api/v2/series"
-  -- print(" d_pkts: " .. data.d_pkts)
-  local pkt_metrics_payload = {
-    series = {
-      {
-        metric = "fluere.net.flow.pkt",
-        type = 0,
-        points = {
-          {
-            timestamp = data.first // 1000000,
-            value = data.d_pkts + 0.0 -- Ensure this is a double (64-bit float)
-          }
-        },
-        resources = {
-          {
-            name = hostname, -- Replace with a valid name if needed
-            type = "host"-- Replace with a valid type if needed
-          }
-        },
-        tags = {
-          "source_ip:" .. data.source,
-          "dest_ip:" .. data.destination,
-          "protocol:" .. data.prot,
-          "src_port:" .. data.src_port,
-          "dst_port:" .. data.dst_port
-        },
-        unit = "" -- Empty string for now, add a valid unit if needed
-      }
-    }
-  }
-  local octets_metrics_payload = {
-    series = {
-      {
-        metric = "fluere.net.flow.octects",
-        type = 0,
-        points = {
-          {
-            timestamp = data.first // 1000000,
-            value = data.d_octets + 0.0 -- Ensure this is a double (64-bit float)
-          }
-        },
-        resources = {
-          {
-            name = hostname, -- Replace with a valid name if needed
-            type = "host"-- Replace with a valid type if needed
-          }
-        },
-        tags = {
-          "source_ip:" .. data.source,
-          "dest_ip:" .. data.destination,
-          "protocol:" .. data.prot,
-          "src_port:" .. data.src_port,
-          "dst_port:" .. data.dst_port
-        },
-        unit = "" -- Empty string for now, add a valid unit if needed
-      }
-    }
-  }
-  -- print(" d_pkts: " .. data.d_pkts)
-  local src_port_metrics_payload = {
-    series = {
-      {
-        metric = "fluere.net.flow.port.src_port",
-        type = 0,
-        points = {
-          {
-            timestamp = data.first // 1000000,
-            value = data.src_port + 0.0 -- Ensure this is a double (64-bit float)
-          }
-        },
-        resources = {
-          {
-            name = hostname, -- Replace with a valid name if needed
-            type = "host"-- Replace with a valid type if needed
-          }
-        },
-        tags = {
-          "source_ip:" .. data.source,
-          "dest_ip:" .. data.destination,
-          "protocol:" .. data.prot,
-          "src_port:" .. data.src_port,
-          "dst_port:" .. data.dst_port
-        },
-        unit = "" -- Empty string for now, add a valid unit if needed
-      }
-    }
-  }
-  local dst_port_metrics_payload = {
-    series = {
-      {
-        metric = "fluere.net.flow.port.dst_port",
-        type = 0,
-        points = {
-          {
-            timestamp = data.first // 1000000,
-            value = data.dst_port + 0.0 -- Ensure this is a double (64-bit float)
-          }
-        },
-        resources = {
-          {
-            name = hostname, -- Replace with a valid name if needed
-            type = "host"-- Replace with a valid type if needed
-          }
-        },
-        tags = {
-          "source_ip:" .. data.source,
-          "dest_ip:" .. data.destination,
-          "protocol:" .. data.prot,
-          "src_port:" .. data.src_port,
-          "dst_port:" .. data.dst_port
-        },
-        unit = "" -- Empty string for now, add a valid unit if needed
-      }
-    }
-  }
+  local metrics = {"pkt", "octects", "port.src_port", "port.dst_port"}
+  local data_fields = {"d_pkts", "d_octets", "src_port", "dst_port"}
 
-  os.execute(string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\'', metrics_endpoint, API_KEY, dkjson.encode(pkt_metrics_payload)))
-  os.execute(string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\'', metrics_endpoint, API_KEY, dkjson.encode(octets_metrics_payload)))
-  os.execute(string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\'', metrics_endpoint, API_KEY, dkjson.encode(src_port_metrics_payload)))
-  os.execute(string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\'', metrics_endpoint, API_KEY, dkjson.encode(dst_port_metrics_payload)))
-
-
+  for i, metric in ipairs(metrics) do
+    local payload = create_payload(data, "fluere.net.flow." .. metric, data_fields[i])
+    execute_curl_command(metrics_endpoint, payload)
+  end
 end
 
 -- Cleanup function
@@ -192,6 +89,4 @@ function plugin.cleanup()
 end
 
 return plugin
-
-
 
