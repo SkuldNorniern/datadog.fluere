@@ -2,36 +2,15 @@ local plugin = {}
 local dkjson = require "dkjson"
 
 local API_KEY = "YOUR_DATADOG_API_KEY" -- Replace with your Datadog API key
-local APP_KEY = "YOUR_DATADOG_APPLICATION_KEY" -- Replace with your Datadog Application key
+
 local hostname = "YOUR_HOSTNAME"
 
 -- Initialization function
 function plugin.init(config)
   API_KEY = config.api_key or error("No API key provided")
-  APP_KEY = config.app_key or error("No app key provided")
   hostname = config.hostname or "fluerehost"
 end
 
--- Create tag function
-function plugin.create_tag(metric_name, tags)
-  local tags_str = table.concat(tags, ", ")
-  print("Creating tags: " .. tags_str .. " for metric: " .. metric_name)
-
-  local tags_endpoint = string.format("https://api.us5.datadoghq.com/api/v2/metrics/%s/tags", metric_name)
-  local create_tag_payload = {
-    data = {
-      type = "create_tags",
-      id = "ExampleMetric",
-      attributes = {
-        tags = tags,
-        metric_type = "gauge"
-      }
-    }
-  }
-
-  local curl_command = string.format('curl -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\'', tags_endpoint, API_KEY, APP_KEY, dkjson.encode(create_tag_payload))
-  os.execute(curl_command)
-end
 
 local function execute_curl_command(endpoint, payload)
   local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, APP_KEY, dkjson.encode(payload))
