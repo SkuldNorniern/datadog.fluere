@@ -8,7 +8,7 @@ local metrics_name = "fluere.flow"
 local pkt_metrics_name = "pkts"
 local octets_metrics_name = "octets"
 local src_port_metrics_name = "port.src"
-local dst_port_metrics_name = "prot.dst"
+local dst_port_metrics_name = "port.dst"
 
 -- Initialization function
 function plugin.init(config)
@@ -20,12 +20,13 @@ function plugin.init(config)
   pkt_metrics_name = config.pkt_metrics_name or "pkts"
   octets_metrics_name = config.octets_metrics_name or "octets"
   src_port_metrics_name = config.src_port_metrics_name or "port.src"
-  dst_port_metrics_name = config.dst_port_metrics_name or "prot.dst"
+  dst_port_metrics_name = config.dst_port_metrics_name or "port.dst"
+
 end
 
 
 local function execute_curl_command(endpoint, payload)
-  local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -H "DD-APPLICATION-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, APP_KEY, dkjson.encode(payload))
+  local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, dkjson.encode(payload))
   os.execute(curl_command)
 end
 
