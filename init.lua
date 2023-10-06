@@ -1,5 +1,5 @@
 local plugin = {}
-local dkjson = require "dkjson"
+-- local dkjson = require "dkjson"
 
 local API_KEY = "YOUR_DATADOG_API_KEY" -- Replace with your Datadog API key
 local METRICS_ENDPOINT = "YOUR_METRICS_ENDPOINT"
@@ -25,10 +25,64 @@ function plugin.init(config)
 end
 
 
-local function execute_curl_command(endpoint, payload)
-  local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, dkjson.encode(payload))
-  os.execute(curl_command)
+local function escape_string(str)
+    local escapes = {
+        ['"'] = '\\"',
+        ['\\'] = '\\\\',
+        ['/'] = '\\/',
+        ['\b'] = '\\b',
+        ['\f'] = '\\f',
+        ['\n'] = '\\n',
+        ['\r'] = '\\r',
+        ['\t'] = '\\t'
+    }
+
+    return str:gsub('["\\/%b]', escapes)
 end
+
+local function encode_json(value, indent)
+    local t = type(value)
+    if t == "string" then
+        return '"' .. escape_string(value) .. '"'
+    elseif t == "number" or t == "boolean" then
+        return tostring(value)
+    elseif t == "nil" then
+        return "null"
+    elseif t == "table" then
+        local has_keys = false
+        for k, v in pairs(value) do
+            if type(k) ~= "number" then
+                has_keys = true
+                break
+            end
+        end
+        
+        local items = {}
+        if has_keys then  -- Object
+            for k, v in pairs(value) do
+                table.insert(items, '"' .. escape_string(k) .. '":' .. encode_json(v))
+            end
+            return '{' .. table.concat(items, ",") .. '}'
+        else  -- Array
+            for i, v in ipairs(value) do
+                table.insert(items, encode_json(v))
+            end
+            return '[' .. table.concat(items, ",") .. ']'
+        end
+    else
+        error("Unsupported data type: " .. t)
+    end
+end
+
+local function execute_curl_command(endpoint, payload)
+    local json_payload = encode_json(payload)
+    local curl_command = string.format('curl -s -X POST "%s" -H "Accept: application/json" -H "Content-Type: application/json" -H "DD-API-KEY: %s" -d \'%s\' > /dev/null 2>&1', endpoint, API_KEY, json_payload)
+    os.execute(curl_command)
+end
+
+-- ... rest of your code ...
+
+
 
 
 -- Helper function to create payload
