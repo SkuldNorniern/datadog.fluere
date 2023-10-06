@@ -2,13 +2,13 @@ local plugin = {}
 local dkjson = require "dkjson"
 
 local API_KEY = "YOUR_DATADOG_API_KEY" -- Replace with your Datadog API key
-local METRICS_ENDPOINT = "https://api.us5.datadoghq.com/api/v2/series"
+local METRICS_ENDPOINT = "YOUR_METRICS_ENDPOINT"
 local hostname = "YOUR_HOSTNAME"
-local metrics_name = "fluere.flow"
-local pkt_metrics_name = "pkts"
-local octets_metrics_name = "octets"
-local src_port_metrics_name = "port.src"
-local dst_port_metrics_name = "port.dst"
+local metrics_name = "YOUR_METRICS_NAME"
+local pkt_metrics_name = "YOUR_PKT_METRICS_NAME"
+local octets_metrics_name = "YOUR_OCTETS_METRICS_NAME"
+local src_port_metrics_name = "YOUR_SRC_PORT_METRICS_NAME"
+local dst_port_metrics_name = "YOUR_DST_PORT_METRICS_NAME"
 
 -- Initialization function
 function plugin.init(config)
